@@ -17,6 +17,7 @@ Este projeto consiste em uma API RESTful desenvolvida para simular um sistema de
 betting_api/
 ├── main.py         # Lógica principal da API e definição dos endpoints
 ├── models.py       # Definição dos modelos do banco de dados (SQLAlchemy)
+├── requirements.txt  # Dependências do projeto Python
 ├── betting.db      # Arquivo do banco de dados SQLite (gerado automaticamente)
 ├── API_Documentation.md # Documentação detalhada dos endpoints
 └── index.html      # Interface web simples para interação com a API
@@ -33,7 +34,7 @@ Certifique-se de ter o Python 3.x instalado em sua máquina.
 ### 2. Clonar o Repositório
 
 ```bash
-git clone <URL_DO_SEU_REPOSITORIO>
+git clone https://github.com/joaofoguin/betting_api
 cd betting_api
 ```
 
@@ -95,11 +96,13 @@ A API utiliza **SQLite**, que armazena os dados em um arquivo (`betting.db`) no 
 
 Uma documentação detalhada dos endpoints, incluindo métodos HTTP, rotas e exemplos de `body` para requisições `POST` e `PUT`, pode ser encontrada no arquivo [API_Documentation.md](API_Documentation.md).
 
+
 ## 👨‍💻 Autores
 
 * João Pedro Silva da Rosa Lima
 * Armando Alves de Oliveira Braga
 * Sophia Ishii Dognani
+
 
 ---
 

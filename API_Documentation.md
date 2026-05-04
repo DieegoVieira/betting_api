@@ -3,7 +3,7 @@
 Esta API RESTful permite gerenciar o ciclo de vida completo de um sistema de apostas em lutas.
 
 ## URL Base do Serviço
-*   **Público:** `...`
+*   **Público:** `https://betting-api-hmup.onrender.com`
 
 ## Endpoints da API
 
