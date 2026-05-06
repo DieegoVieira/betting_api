@@ -59,7 +59,7 @@ def agendar_luta(luta: LutaBase, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="IDs devem ser diferentes")
 
     if not verificar_lutador_na_outra_api(luta.id_lutador1) or not verificar_lutador_na_outra_api(luta.id_lutador2):
-        raise HTTPException(status_code=404, detail="Lutador não existe na API 8000")
+        raise HTTPException(status_code=404, detail="Lutador não existe na API")
 
     db_luta = Luta(**luta.dict())
     db.add(db_luta)
@@ -92,7 +92,7 @@ def listar_lutas(db: Session = Depends(get_db)):
             if r1.status_code == 200: nome1 = r1.json().get('nome')
             if r2.status_code == 200: nome2 = r2.json().get('nome')
         except:
-            pass # Se a API 8000 cair, mantém "Desconhecido"
+            pass # Se a API cair, mantém "Desconhecido"
 
         # Montamos um objeto novo que inclui os nomes para o HTML
         resultado.append({
