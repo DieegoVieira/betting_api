@@ -4,6 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from pydantic import BaseModel
+from fastapi import Request, Header
+from security import verificar_assinatura
+from acess_log import registrar_tentativa
 
 # 1. Configuração do Banco (Lutas)
 SQLALCHEMY_DATABASE_URL = "sqlite:///./lutas_agendadas.db"
@@ -67,18 +70,64 @@ def agendar_luta(luta: LutaBase, db: Session = Depends(get_db)):
     db.refresh(db_luta)
     return db_luta
 
+#Criptografia
+
+def validar_api_externa(
+        request: Request,
+        x_api_nome: str = Header(None),
+        x_assinatura: str = Header(None)
+):
+    ip = request.client.host
+    rota = request.url.path
+
+    if not x_api_nome or not x_assinatura:
+        registrar_tentativa(
+            nome_api=x_api_nome or "DESCONHECIDA",
+            rota=rota,
+            ip=ip,
+            autorizado=False
+        )
+        raise HTTPException(status_code=401, detail="Cabeçalhos de autenticação ausentes")
+    
+    mensagem = f"{x_api_nome}:{rota}"
+
+    print("Mensagem verificada no servidor:", mensagem)
+
+    assinatura_valida = verificar_assinatura(mensagem, x_assinatura)
+
+    registrar_tentativa(
+        nome_api=x_api_nome,
+        rota=rota,
+        ip=ip,
+        autorizado=assinatura_valida
+    )
+
+    if not assinatura_valida:
+        raise HTTPException(status_code = 403, detail= "Assinatura inválida")
+    
+    return True
 
 @app.get("/lutas/{luta_id}")
-def get_luta(luta_id: int, db: Session = Depends(get_db)):
+def buscar_luta(
+    luta_id: int,
+    request: Request,
+    autorizado: bool = Depends(validar_api_externa),
+    db: Session = Depends(get_db)
+):
     luta = db.query(Luta).filter(Luta.id == luta_id).first()
+
     if not luta:
         raise HTTPException(status_code=404, detail="Luta não encontrada")
+
     return luta
 
 @app.get("/lutas/")
-def listar_lutas(db: Session = Depends(get_db)):
-    lutas = db.query(Luta).all()
-    resultado = []
+def listar_lutas(
+    request: Request,
+    autorizado: bool = Depends(validar_api_externa),
+    db: Session = Depends(get_db)
+):  
+    return db.query(Luta).all()
 
     for luta in lutas:
         # Busca os nomes na outra API usando o ID

@@ -18,3 +18,10 @@ env/
 # Arquivos do Sistema
 .DS_Store
 Thumbs.db
+
+# Chaves RSA
+private_key.pem
+public_key.pem
+
+#Logs
+*.log
