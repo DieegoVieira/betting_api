@@ -126,34 +126,44 @@ def listar_lutas(
     request: Request,
     autorizado: bool = Depends(validar_api_externa),
     db: Session = Depends(get_db)
-):  
-    return db.query(Luta).all()
+):
+    lutas = db.query(Luta).all()
+    resultado = []
 
     for luta in lutas:
-        # Busca os nomes na outra API usando o ID
         nome1 = "Lutador Desconhecido"
         nome2 = "Lutador Desconhecido"
-        
-        try:
-            r1 = requests.get(f"https://api-lutadoressd.onrender.com/api/lutadores/{luta.id_lutador1}", timeout=5)
-            r2 = requests.get(f"https://api-lutadoressd.onrender.com/api/lutadores/{luta.id_lutador2}", timeout=5)
-            
-            if r1.status_code == 200: nome1 = r1.json().get('nome')
-            if r2.status_code == 200: nome2 = r2.json().get('nome')
-        except:
-            pass # Se a API cair, mantém "Desconhecido"
 
-        # Montamos um objeto novo que inclui os nomes para o HTML
+        try:
+            r1 = requests.get(
+                f"https://api-lutadoressd.onrender.com/api/lutadores/{luta.id_lutador1}",
+                timeout=5
+            )
+            r2 = requests.get(
+                f"https://api-lutadoressd.onrender.com/api/lutadores/{luta.id_lutador2}",
+                timeout=5
+            )
+
+            if r1.status_code == 200:
+                nome1 = r1.json().get("nome", "Lutador Desconhecido")
+
+            if r2.status_code == 200:
+                nome2 = r2.json().get("nome", "Lutador Desconhecido")
+
+        except:
+            pass
+
         resultado.append({
             "id": luta.id,
             "data": luta.data,
             "horario": luta.horario,
+            "id_lutador1": luta.id_lutador1,
+            "id_lutador2": luta.id_lutador2,
             "nome_lutador1": nome1,
             "nome_lutador2": nome2
         })
-    
-    return resultado
 
+    return resultado
 @app.delete("/lutas/{luta_id}")
 def cancelar_luta(luta_id: int, db: Session = Depends(get_db)):
     db_obj = db.query(Luta).filter(Luta.id == luta_id).first()
