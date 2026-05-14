@@ -1,10 +1,10 @@
 # 🥊 API de Apostas em Lutas - Sistemas Distribuídos (Microserviço)
 
-Este projeto consiste em uma API RESTful desenvolvida para simular um sistema de agendamento e apostas em lutas. Ele foi construído como parte da disciplina de Sistemas Distribuídos, demonstrando a comunicação entre serviços independentes (interoperabilidade) e implementando uma **Arquitetura de Segurança M2M (Machine-to-Machine) com Criptografia RSA**.
+Este projeto consiste em uma API RESTful desenvolvida para simular um sistema de agendamento e gestão de lutas. Ele foi construído como parte da disciplina de Sistemas Distribuídos, demonstrando a interoperabilidade entre serviços independentes e implementando uma **Arquitetura de Segurança M2M (Machine-to-Machine) com Criptografia Assimétrica RSA**.
 
 > ⚠️ **Nota de Arquitetura:**  
-> Este repositório contém apenas o **Microserviço de Backend**.  
-> A interface web e o Gateway de autenticação de usuários residem em um repositório separado (Integrador).
+> Este repositório contém o **Microserviço de Backend (API de Lutas)**.  
+> A interface web e o Gateway de autenticação de usuários residem em um repositório separado (**Integrador**).
 
 ---
 
@@ -12,21 +12,20 @@ Este projeto consiste em uma API RESTful desenvolvida para simular um sistema de
 
 A API está hospedada e pronta para receber requisições em:
 
-👉 `https://betting-api-hmup.onrender.com`
+👉 `https://betting-api-lutas.vercel.app`
 
-> *(Lembre-se: requisições diretas via navegador serão bloqueadas (Erro 401/403) devido à exigência de assinatura digital).*
+> *(Nota: Requisições diretas via navegador retornarão Erro 401/403 devido à exigência de assinatura digital nos cabeçalhos).*
 
 ---
 
 # 🚀 Tecnologias Utilizadas
 
 - **Python 3.11+** — Linguagem de programação principal.
-- **FastAPI** — Framework moderno para construção de APIs de alta performance.
-- **Cryptography** — Biblioteca para validação de assinaturas digitais RSA (*Zero Trust Security*).
-- **Requests** — Biblioteca para comunicação síncrona entre APIs.
-- **SQLAlchemy** — ORM para persistência de dados.
-- **SQLite** — Banco de dados relacional baseado em arquivo.
-- **Render.com** — Plataforma de hospedagem cloud.
+- **FastAPI** — Framework de alta performance para construção de APIs.
+- **Cryptography** — Validação de assinaturas digitais RSA (*Zero Trust Security*).
+- **SQLAlchemy** — ORM para abstração e persistência de dados.
+- **PostgreSQL (Neon.tech)** — Banco de dados relacional em nuvem para persistência real.
+- **Vercel** — Plataforma de hospedagem Serverless.
 
 ---
 
@@ -34,13 +33,12 @@ A API está hospedada e pronta para receber requisições em:
 
 ```bash
 betting_api/
-├── main.py              # Lógica da API de Lutas e configuração de rotas
-├── models.py            # Definição das tabelas do banco de dados
-├── security.py          # Motor criptográfico para validação RSA
-├── acess_log.py         # Sistema de auditoria e logs de requisições
-├── public_key.pem       # Chave pública para validação das assinaturas
+├── API_lutas.py         # Orquestrador da API e definição de rotas
+├── models.py            # Definição das tabelas (Lutas e Integradores)
+├── security.py          # Motor de validação criptográfica RSA
+├── acess_log.py         # Auditoria e logs de requisições (capturados pela Vercel)
+├── vercel.json          # Configuração de deploy Serverless
 ├── requirements.txt     # Dependências do projeto
-├── lutas_agendadas.db   # Banco SQLite local (ignorado no Git)
 └── API_Documentation.md # Documentação técnica dos endpoints
 ````
 
@@ -48,68 +46,69 @@ betting_api/
 
 # 🛡️ Segurança M2M (Machine-to-Machine)
 
-Para garantir que apenas o sistema oficial possa agendar ou cancelar lutas, esta API utiliza **Assinatura Digital RSA**.
+Para garantir que apenas sistemas autorizados possam gerenciar o calendário de lutas, a API utiliza **Assinatura Digital RSA**.
 
-## 🔐 Fluxo de Segurança
+---
 
-### 1. Recepção da Requisição
+# 🔐 Fluxo de Validação
 
-A API recebe uma requisição contendo os cabeçalhos:
+## 1️⃣ Recepção da Requisição
+
+A API intercepta os cabeçalhos:
 
 ```http
-x-api-nome
-x-assinatura
+X-API-Nome
+X-Assinatura
 ```
 
 ---
 
-### 2. Validação Criptográfica (Local)
+## 2️⃣ Identificação do Integrador
 
-A API utiliza o arquivo:
+O sistema consulta o banco de dados em busca da **Chave Pública** vinculada ao integrador informado.
+
+---
+
+## 3️⃣ Validação Criptográfica
+
+O motor de segurança utiliza a chave pública armazenada para validar matematicamente a assinatura enviada.
+
+A autenticação garante:
+
+* Integridade da mensagem
+* Autenticidade do integrador
+* Segurança sem compartilhamento de segredos
+
+---
+
+## 4️⃣ Interoperabilidade com Microsserviços
+
+Após a validação RSA, a API realiza uma consulta ao microserviço externo de lutadores:
 
 ```bash
-public_key.pem
+https://api-lutadoressd.onrender.com/api/lutadores/
 ```
 
-para verificar matematicamente se a assinatura foi gerada pelo Gateway oficial.
+Objetivo:
+
+* Confirmar existência dos atletas
+* Garantir consistência dos dados distribuídos
 
 ---
 
-### 3. Validação Externa
+## 5️⃣ Persistência
 
-Após validar a assinatura, a API realiza uma requisição HTTP GET para o microserviço de lutadores:
+A luta somente é registrada no banco de dados se:
 
-```bash
-https://api-lutadoressd.onrender.com/api/lutas/
-```
-
-O objetivo é confirmar se os IDs enviados realmente existem.
+* A assinatura RSA for válida
+* O integrador estiver autorizado
+* Os lutadores existirem
 
 ---
 
-### 4. Persistência
+# ⚙️ Execução Local
 
-Somente após ambas as validações serem aprovadas:
-
-* Assinatura RSA válida
-* Lutadores existentes
-
-a luta é salva no banco de dados local.
-
----
-
-# ⚙️ Configuração e Execução Local
-
-## 1️⃣ Pré-requisitos
-
-Antes de iniciar:
-
-* Ter o **Python 3.x** instalado.
-* Possuir o arquivo `public_key.pem` na raiz do projeto.
-
----
-
-## 2️⃣ Clonar o Repositório e Instalar Dependências
+# 1️⃣ Instalação
 
 ```bash
 git clone https://github.com/joaofoguin/betting_api
@@ -120,109 +119,147 @@ pip install -r requirements.txt
 
 ---
 
-## 3️⃣ Executar a API Localmente
+# 2️⃣ Variáveis de Ambiente
 
-```bash
-uvicorn API_lutadores:app --port 8001 --reload
+Crie um arquivo `.env` ou configure as variáveis diretamente no terminal.
+
+## DATABASE_URL
+
+String de conexão do banco de dados.
+
+Exemplos:
+
+```env
+DATABASE_URL=postgresql://usuario:senha@host/database
 ```
 
-A API estará disponível em:
+ou
 
-👉 `http://127.0.0.1:8001`
-
----
-
-# ☁️ Deploy no Render.com
-
-A API já está configurada para deploy contínuo no Render.
-
-## Build Command
-
-```bash
-pip install -r requirements.txt
-```
-
-## Start Command
-
-```bash
-uvicorn API_lutadores:app --host 0.0.0.0 --port $PORT
+```env
+DATABASE_URL=sqlite:///./local.db
 ```
 
 ---
 
-# 💾 Persistência no Render
+## SENHA_ADMIN
 
-Como o SQLite utiliza arquivos locais, os dados são resetados a cada novo deploy em plataformas cloud efêmeras (como o Render Free).
+Token utilizado para cadastro de novos integradores via Swagger/Admin API.
 
-## ✅ Recomendação
+Exemplo:
 
-Para persistência permanente:
-
-* Utilizar um **Render Disk**
-* Montar o disco no mesmo caminho do arquivo:
-
-```bash
-lutas_agendadas.db
+```env
+SENHA_ADMIN=minha_senha_segura
 ```
 
 ---
 
-# 🔄 Resetar Dados Localmente
-
-1. Pare a execução da API.
-2. Delete os arquivos:
+# 3️⃣ Iniciar Servidor
 
 ```bash
-lutas_agendadas.db
-tentativas_acesso.log
+uvicorn API_lutas:app --reload
 ```
 
-3. Reinicie a API.
+A API será iniciada localmente.
 
-Os arquivos serão recriados automaticamente.
+---
+
+# ☁️ Deploy na Vercel
+
+O projeto está otimizado para ambiente **Serverless** da Vercel.
+
+---
+
+## 💾 Persistência
+
+Utiliza:
+
+* **PostgreSQL**
+* **Neon.tech**
+* Conexão persistente em nuvem
+
+---
+
+## 📜 Logs e Auditoria
+
+O sistema utiliza:
+
+```python
+print()
+```
+
+Os logs são automaticamente capturados pelo painel da Vercel.
+
+Isso permite:
+
+* Auditoria
+* Monitoramento
+* Rastreamento de acessos
+* Diagnóstico de falhas
+
+---
+
+## ⚙️ Configuração
+
+O arquivo:
+
+```bash
+vercel.json
+```
+
+define:
+
+* Runtime Python
+* Mapeamento de rotas
+* Estratégia Serverless
 
 ---
 
 # 📚 Documentação Interativa
 
-Para detalhes técnicos sobre os endpoints e payloads:
+A documentação Swagger está disponível em:
 
-* Consulte o arquivo:
+👉 `https://betting-api-lutas.vercel.app/docs`
 
-```bash
-API_Documentation.md
-```
+---
 
-* Ou acesse a documentação Swagger:
+## 💡 Cadastro de Integradores
 
-```bash
-/docs
-```
-
-Exemplo:
+Para cadastrar um novo integrador, utilize:
 
 ```bash
-https://betting-api-hmup.onrender.com/docs
+/admin/cadastrar-integrador
 ```
 
-> ⚠️ Observação:
-> Testes via Swagger exigem configuração manual dos cabeçalhos RSA.
+Enviando no cabeçalho:
+
+```http
+X-Admin-Token
+```
+
+com o valor definido em:
+
+```env
+SENHA_ADMIN
+```
 
 ---
 
 # 🧠 Conceitos de Sistemas Distribuídos Aplicados
 
-Este projeto demonstra diversos conceitos estudados em Sistemas Distribuídos:
+Este projeto implementa diversos conceitos fundamentais da disciplina:
 
-* Comunicação entre microserviços
-* Arquitetura distribuída
-* Segurança M2M
-* Assinatura digital RSA
-* Validação de identidade entre serviços
-* Persistência de dados
+* Comunicação síncrona entre microserviços
 * APIs RESTful
-* Auditoria e logs
-* Integração síncrona via HTTP
+* Interoperabilidade entre serviços
+* Segurança distribuída
+* Autenticação M2M
+* Criptografia assimétrica RSA
+* Persistência relacional em nuvem
+* Arquitetura Serverless
+* Auditoria distribuída
+* Rastreabilidade de acessos
+* Validação de integridade
+* Integração HTTP/REST
 
 ---
 
@@ -231,6 +268,3 @@ Este projeto demonstra diversos conceitos estudados em Sistemas Distribuídos:
 * João Pedro Silva da Rosa Lima
 * Armando Alves de Oliveira Braga
 * Sophia Ishii Dognani
-
-```
-```

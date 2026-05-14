@@ -5,12 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-# Módulos locais separados
 from models import Base, Luta, IntegradorAutorizado
 from acess_log import registrar_tentativa
 from security import verificar_assinatura
 
-# Puxa a string de conexão do Neon enviada pela Vercel. Se não houver, usa SQLite temporário
 DATABASE_URL = os.getenv("POSTGRES_URL_NON_POOLING") or os.getenv("DATABASE_URL")
 
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
@@ -61,7 +59,6 @@ def validar_api_externa(request: Request, db: Session = Depends(get_db)):
     ip = request.headers.get("x-forwarded-for") or request.client.host
     rota = request.url.path
 
-    # Busca os cabeçalhos de forma flexível (minúsculas ou maiúsculas)
     x_api_nome = request.headers.get("X-API-Nome") or request.headers.get("x-api-nome")
     x_assinatura = request.headers.get("X-Assinatura") or request.headers.get("x-assinatura")
 
@@ -71,13 +68,10 @@ def validar_api_externa(request: Request, db: Session = Depends(get_db)):
     
     mensagem = f"{x_api_nome}:{rota}"
     
-    # Chama a verificação
     assinatura_valida = verificar_assinatura(mensagem, x_assinatura, x_api_nome, db)
 
-    # Registra o log (apenas print para a Vercel)
     registrar_tentativa(x_api_nome, rota, ip, autorizado=assinatura_valida)
 
-    # CORREÇÃO DEFINITIVA: Verificação simples sem erro de sintaxe
     if not assinatura_valida:
         raise HTTPException(status_code=403, detail="Assinatura inválida")
     
@@ -136,11 +130,8 @@ def listar_lutas(request: Request, autorizado: bool = Depends(validar_api_extern
 def cancelar_luta(
     luta_id: int, 
     db: Session = Depends(get_db), 
-    autorizado: bool = Depends(validar_api_externa) # Exige assinatura do integrador
+    autorizado: bool = Depends(validar_api_externa)
 ):
-    """
-    Esta rota deleta uma luta agendada do banco de dados.
-    """
     db_obj = db.query(Luta).filter(Luta.id == luta_id).first()
     if not db_obj:
         raise HTTPException(status_code=404, detail="Luta não encontrada")
@@ -148,3 +139,32 @@ def cancelar_luta(
     db.delete(db_obj)
     db.commit()
     return {"message": f"Luta {luta_id} cancelada com sucesso"}
+
+@app.put("/lutas/{luta_id}")
+def editar_luta(
+    luta_id: int, 
+    luta_atualizada: LutaBase, 
+    db: Session = Depends(get_db), 
+    autorizado: bool = Depends(validar_api_externa)
+):
+    db_luta = db.query(Luta).filter(Luta.id == luta_id).first()
+    
+    if not db_luta:
+        raise HTTPException(status_code=404, detail="Luta não encontrada para edição")
+
+    if luta_atualizada.id_lutador1 == luta_atualizada.id_lutador2:
+        raise HTTPException(status_code=400, detail="IDs dos lutadores devem ser diferentes")
+
+    if not verificar_lutador_na_outra_api(luta_atualizada.id_lutador1) or \
+       not verificar_lutador_na_outra_api(luta_atualizada.id_lutador2):
+        raise HTTPException(status_code=404, detail="Um ou ambos os lutadores não existem na API externa")
+
+    db_luta.data = luta_atualizada.data
+    db_luta.horario = luta_atualizada.horario
+    db_luta.id_lutador1 = luta_atualizada.id_lutador1
+    db_luta.id_lutador2 = luta_atualizada.id_lutador2
+
+    db.commit()
+    db.refresh(db_luta)
+    
+    return {"msg": "Luta atualizada com sucesso", "luta": db_luta}
