@@ -1,9 +1,8 @@
-
 fastapi
 uvicorn
-sqlachemy
+sqlalchemy
 psycopg2-binary
-requests
 cryptography
-python-dotenv
+requests
 python-multipart
+python-dotenv
