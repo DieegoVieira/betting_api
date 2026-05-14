@@ -6,7 +6,6 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from security import verificar_assinatura
-from acess_log import registrar_tentativa
 from models import Base
 
 # 1. Configuração do Banco (Lutas)
@@ -63,6 +62,16 @@ def verificar_lutador_na_outra_api(id_lutador: int):
     except:
         return False
 
+# Nova função local de log protegida contra Read-only
+def registrar_tentativa(nome_api, rota, ip, autorizado):
+    status = "AUTORIZADO" if autorizado else "NEGADO"
+    print(f"[LOG LOCAL VERCEL] API: {nome_api} | Rota: {rota} | IP: {ip} | Status: {status}")
+    try:
+        with open("tentativas_acesso.log", "a", encoding="utf-8") as arquivo:
+            arquivo.write(f"API: {nome_api} | Rota: {rota} | IP: {ip} | Status: {status}\n")
+    except OSError:
+        pass  # Ignora o bloqueio de escrita da Vercel com sucesso
+    
 # 5. Criptografia
 def verificar_admin(x_admin_token: str = Header(None)):
     if not x_admin_token or x_admin_token != SENHA_ADMIN:
