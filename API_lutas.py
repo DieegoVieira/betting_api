@@ -1,14 +1,17 @@
-import requests
 import os
+import requests
 from fastapi import FastAPI, HTTPException, Depends, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
-from security import verificar_assinatura
-from models import Base
 
-# 1. Configuração do Banco (Lutas)
+# Imports dos seus arquivos locais
+from models import Base, Luta, IntegradorAutorizado
+from acess_log import registrar_tentativa
+from security import verificar_assinatura
+
+# 1. Configuração do Banco de Dados
 SQLALCHEMY_DATABASE_URL = os.getenv("POSTGRES_URL_NON_POOLING")
 
 if SQLALCHEMY_DATABASE_URL and SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
@@ -18,23 +21,12 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 SENHA_ADMIN = os.getenv("SENHA_ADMIN", "admin_local")
 
-class Luta(Base):
-    __tablename__ = "lutas"
-    __table_args__ = {'extend_existing': True}
-    id = Column(Integer, primary_key=True)
-    data = Column(String, nullable=False)
-    horario = Column(String, nullable=False)
-    id_lutador1 = Column(Integer, nullable=False)
-    id_lutador2 = Column(Integer, nullable=False)
-
-from models import IntegradorAutorizado
-
+# Cria todas as tabelas (lutas, integradores e logs_acesso) se elas não existirem no Neon
 Base.metadata.create_all(bind=engine)
 
-# 2. INICIALIZAÇÃO DO APP (Deve vir antes das rotas!)
+# 2. Inicialização do App
 app = FastAPI()
 
-# 3. Middlewares
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 4. Pydantic e Dependências
+# 3. Esquemas do Pydantic e Dependências
 class LutaBase(BaseModel):
     data: str
     horario: str
@@ -52,8 +44,10 @@ class LutaBase(BaseModel):
 
 def get_db():
     db = SessionLocal()
-    try: yield db
-    finally: db.close()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def verificar_lutador_na_outra_api(id_lutador: int):
     try:
@@ -62,17 +56,6 @@ def verificar_lutador_na_outra_api(id_lutador: int):
     except:
         return False
 
-# Nova função local de log protegida contra Read-only
-def registrar_tentativa(nome_api, rota, ip, autorizado):
-    status = "AUTORIZADO" if autorizado else "NEGADO"
-    print(f"[LOG LOCAL VERCEL] API: {nome_api} | Rota: {rota} | IP: {ip} | Status: {status}")
-    try:
-        with open("tentativas_acesso.log", "a", encoding="utf-8") as arquivo:
-            arquivo.write(f"API: {nome_api} | Rota: {rota} | IP: {ip} | Status: {status}\n")
-    except OSError:
-        pass  # Ignora o bloqueio de escrita da Vercel com sucesso
-    
-# 5. Criptografia
 def verificar_admin(x_admin_token: str = Header(None)):
     if not x_admin_token or x_admin_token != SENHA_ADMIN:
         raise HTTPException(
@@ -80,6 +63,7 @@ def verificar_admin(x_admin_token: str = Header(None)):
             detail="Acesso negado: Token de administrador inválido ou ausente."
         )
 
+# 4. Middleware de Validação de Segurança
 def validar_api_externa(
         request: Request,
         x_api_nome: str = Header(None),
@@ -94,47 +78,46 @@ def validar_api_externa(
             nome_api=x_api_nome or "DESCONHECIDA",
             rota=rota,
             ip=ip,
-            autorizado=False
+            autorizado=False,
+            SessionLocal=SessionLocal # Passamos a sessão para o acess_log conseguir salvar
         )
         raise HTTPException(status_code=401, detail="Cabeçalhos de autenticação ausentes")
     
     mensagem = f"{x_api_nome}:{rota}"
-
     print("Mensagem verificada no servidor:", mensagem)
 
-    assinatura_valida = verificar_assinatura(
-        mensagem, 
-        x_assinatura, 
-        x_api_nome, 
-        db
-    )
+    assinatura_valida = verificar_assinatura(mensagem, x_assinatura, x_api_nome, db)
 
     registrar_tentativa(
         nome_api=x_api_nome,
         rota=rota,
         ip=ip,
-        autorizado=assinatura_valida
+        autorizado=assinatura_valida,
+        SessionLocal=SessionLocal
     )
 
     if not assinatura_valida:
-        raise HTTPException(status_code = 403, detail= "Assinatura inválida")
+        raise HTTPException(status_code=403, detail="Assinatura inválida")
     
     return True
 
+# 5. As Rotas do Sistema
+@app.get("/init-db")
+def inicializar_banco():
+    try:
+        Base.metadata.create_all(bind=engine)
+        return {"status": "Sucesso", "mensagem": "Tabelas atualizadas com sucesso no Neon!"}
+    except Exception as e:
+        return {"status": "Erro", "mensagem": str(e)}
 
-# 6. AS ROTAS
 @app.post("/admin/cadastrar-integrador")
 def cadastrar_integrador(
     nome_api: str,
     chave_publica: str,
     db: Session = Depends(get_db),
     admin_valido: None = Depends(verificar_admin)
-    ):
-
-    novo_integrador = IntegradorAutorizado(
-        nome_api=nome_api,
-        chave_publica_pem=chave_publica
-    )
+):
+    novo_integrador = IntegradorAutorizado(nome_api=nome_api, chave_publica_pem=chave_publica)
     db.add(novo_integrador)
     db.commit()
     return {"msg": f"O grupo {nome_api} foi autorizado com sucesso!"}
@@ -145,8 +128,7 @@ def agendar_luta(
     db: Session = Depends(get_db),
     autorizado: bool = Depends(validar_api_externa)
 ):
-
-    if luta.id_lutador1 == luta.id_lutador2:
+    if Luta.id_lutador1 == luta.id_lutador2: # Correção de um pequeno detalhe da validação
         raise HTTPException(status_code=400, detail="IDs devem ser diferentes")
 
     if not verificar_lutador_na_outra_api(luta.id_lutador1) or not verificar_lutador_na_outra_api(luta.id_lutador2):
@@ -157,20 +139,6 @@ def agendar_luta(
     db.commit()
     db.refresh(db_luta)
     return db_luta
-
-@app.get("/lutas/{luta_id}")
-def buscar_luta(
-    luta_id: int,
-    request: Request,
-    autorizado: bool = Depends(validar_api_externa),
-    db: Session = Depends(get_db)
-):
-    luta = db.query(Luta).filter(Luta.id == luta_id).first()
-
-    if not luta:
-        raise HTTPException(status_code=404, detail="Luta não encontrada")
-
-    return luta
 
 @app.get("/lutas/")
 def listar_lutas(
@@ -184,23 +152,14 @@ def listar_lutas(
     for luta in lutas:
         nome1 = "Lutador Desconhecido"
         nome2 = "Lutador Desconhecido"
-
         try:
-            r1 = requests.get(
-                f"https://api-lutadoressd.onrender.com/api/lutadores/{luta.id_lutador1}",
-                timeout=5
-            )
-            r2 = requests.get(
-                f"https://api-lutadoressd.onrender.com/api/lutadores/{luta.id_lutador2}",
-                timeout=5
-            )
+            r1 = requests.get(f"https://api-lutadoressd.onrender.com/api/lutadores/{luta.id_lutador1}", timeout=5)
+            r2 = requests.get(f"https://api-lutadoressd.onrender.com/api/lutadores/{luta.id_lutador2}", timeout=5)
 
             if r1.status_code == 200:
                 nome1 = r1.json().get("apelido", "Lutador Desconhecido")
-
             if r2.status_code == 200:
                 nome2 = r2.json().get("apelido", "Lutador Desconhecido")
-
         except:
             pass
 
@@ -213,8 +172,19 @@ def listar_lutas(
             "nome_lutador1": nome1,
             "nome_lutador2": nome2
         })
-
     return resultado
+
+@app.get("/lutas/{luta_id}")
+def buscar_luta(
+    luta_id: int,
+    request: Request,
+    autorizado: bool = Depends(validar_api_externa),
+    db: Session = Depends(get_db)
+):
+    luta = db.query(Luta).filter(Luta.id == luta_id).first()
+    if not luta:
+        raise HTTPException(status_code=404, detail="Luta não encontrada")
+    return luta
 
 @app.delete("/lutas/{luta_id}")
 def cancelar_luta(
@@ -222,11 +192,9 @@ def cancelar_luta(
     db: Session = Depends(get_db),
     autorizado: bool = Depends(validar_api_externa)
 ):
-
     db_obj = db.query(Luta).filter(Luta.id == luta_id).first()
     if not db_obj:
         raise HTTPException(status_code=404, detail="Luta não encontrada")
-    
     db.delete(db_obj)
     db.commit()
     return {"message": "Luta cancelada com sucesso"}
