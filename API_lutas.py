@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from pydantic import BaseModel
 from security import verificar_assinatura
 from acess_log import registrar_tentativa
-from models import IntegradorAutorizado, Base
+from models import Base, IntegradorAutorizado
 
 # 1. Configuração do Banco (Lutas)
 SQLALCHEMY_DATABASE_URL = "sqlite:///./database_v2.db"
