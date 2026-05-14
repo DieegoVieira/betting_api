@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 # Imports ajustados e limpos dos seus arquivos locais
 from security import verificar_assinatura
-from acess_log import registrar_tentativa
+from banco_log import registrar_tentativa
 from models import Base, Luta, IntegradorAutorizado
 
 # 1. Configuração do Banco (Lutas)
