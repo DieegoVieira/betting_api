@@ -68,7 +68,8 @@ def verificar_admin(x_admin_token: str = Header(None)):
 def validar_api_externa(
         request: Request,
         x_api_nome: str = Header(None),
-        x_assinatura: str = Header(None)
+        x_assinatura: str = Header(None),
+        db: Session = Depends(get_db)
 ):
     ip = request.client.host
     rota = request.url.path
@@ -86,7 +87,12 @@ def validar_api_externa(
 
     print("Mensagem verificada no servidor:", mensagem)
 
-    assinatura_valida = verificar_assinatura(mensagem, x_assinatura)
+    assinatura_valida = verificar_assinatura(
+        mensagem, 
+        x_assinatura, 
+        x_api_nome, 
+        db
+    )
 
     registrar_tentativa(
         nome_api=x_api_nome,
