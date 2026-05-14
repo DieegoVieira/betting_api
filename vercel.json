@@ -1,5 +1,15 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "API_lutas.py" }
+  "devCommand": "uvicorn API_lutas:app",
+  "builds": [
+    {
+      "src": "API_lutas.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "API_lutas.py"
+    }
   ]
 }
