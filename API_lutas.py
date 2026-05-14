@@ -3,17 +3,16 @@ import os
 from fastapi import FastAPI, HTTPException, Depends, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.orm import sessionmaker, Session, declarative_base
+from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from security import verificar_assinatura
 from acess_log import registrar_tentativa
 from models import Base, IntegradorAutorizado
 
 # 1. Configuração do Banco (Lutas)
-SQLALCHEMY_DATABASE_URL = "sqlite:///./database_v2.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./database_v3.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 SENHA_ADMIN = os.getenv("SENHA_ADMIN", "admin_local")
 
 class Luta(Base):
