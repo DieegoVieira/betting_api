@@ -55,22 +55,7 @@ def verificar_lutador_na_outra_api(id_lutador: int):
     except:
         return False
 
-# 5. AGORA SIM, AS ROTAS (Depois que o 'app' já existe)
-@app.post("/lutas/")
-def agendar_luta(luta: LutaBase, db: Session = Depends(get_db)):
-    if luta.id_lutador1 == luta.id_lutador2:
-        raise HTTPException(status_code=400, detail="IDs devem ser diferentes")
-
-    if not verificar_lutador_na_outra_api(luta.id_lutador1) or not verificar_lutador_na_outra_api(luta.id_lutador2):
-        raise HTTPException(status_code=404, detail="Lutador não existe na API")
-
-    db_luta = Luta(**luta.dict())
-    db.add(db_luta)
-    db.commit()
-    db.refresh(db_luta)
-    return db_luta
-
-#Criptografia
+# 5. Criptografia
 
 def validar_api_externa(
         request: Request,
@@ -106,6 +91,26 @@ def validar_api_externa(
         raise HTTPException(status_code = 403, detail= "Assinatura inválida")
     
     return True
+
+# 6. AS ROTAS
+@app.post("/lutas/")
+def agendar_luta(
+    luta: LutaBase,
+    db: Session = Depends(get_db),
+    autorizado: bool = Depends(validar_api_externa)
+):
+
+    if luta.id_lutador1 == luta.id_lutador2:
+        raise HTTPException(status_code=400, detail="IDs devem ser diferentes")
+
+    if not verificar_lutador_na_outra_api(luta.id_lutador1) or not verificar_lutador_na_outra_api(luta.id_lutador2):
+        raise HTTPException(status_code=404, detail="Lutador não existe na API")
+
+    db_luta = Luta(**luta.dict())
+    db.add(db_luta)
+    db.commit()
+    db.refresh(db_luta)
+    return db_luta
 
 @app.get("/lutas/{luta_id}")
 def buscar_luta(
@@ -145,10 +150,10 @@ def listar_lutas(
             )
 
             if r1.status_code == 200:
-                nome1 = r1.json().get("nome", "Lutador Desconhecido")
+                nome1 = r1.json().get("apelido", "Lutador Desconhecido")
 
             if r2.status_code == 200:
-                nome2 = r2.json().get("nome", "Lutador Desconhecido")
+                nome2 = r2.json().get("apelido", "Lutador Desconhecido")
 
         except:
             pass
@@ -164,8 +169,14 @@ def listar_lutas(
         })
 
     return resultado
+
 @app.delete("/lutas/{luta_id}")
-def cancelar_luta(luta_id: int, db: Session = Depends(get_db)):
+def cancelar_luta(
+    luta_id: int,
+    db: Session = Depends(get_db),
+    autorizado: bool = Depends(validar_api_externa)
+):
+
     db_obj = db.query(Luta).filter(Luta.id == luta_id).first()
     if not db_obj:
         raise HTTPException(status_code=404, detail="Luta não encontrada")

@@ -1,27 +1,43 @@
-# Cache do Python
+# ==========================================
+# .gitignore - API de Lutas (Microserviço)
+# ==========================================
+
+# 1. Banco de Dados Local
+# Ignora o banco SQLite para não sobrepor dados ao fazer push/pull
+*.db
+*.sqlite
+*.sqlite3
+lutas_agendadas.db
+
+# 2. Logs do Sistema
+# Ignora os registros de acesso e erros locais
+*.log
+tentativas_acesso.log
+
+# 3. Chaves Privadas (Segurança Extra)
+# A chave pública (public_key.pem) PODE subir para o Git, 
+# mas bloqueamos qualquer chave privada por precaução caso você copie sem querer.
+*private*.pem
+*private*.key
+
+# 4. Arquivos do Python (Cache e Compilados)
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Ambientes Virtuais
+# 5. Ambientes Virtuais (Venv)
+# Ignora as pastas onde as bibliotecas do requirements.txt são instaladas localmente
 venv/
+.venv/
 env/
+.env/
+
+# 6. Variáveis de Ambiente
+# Caso você use um arquivo .env no futuro para guardar URLs ou senhas
 .env
 
-# Banco de Dados Local (Importante para não enviar seus testes locais)
-*.db
-*.sqlite3
-
-# Arquivos do VS Code
-.vscode/
-
-# Arquivos do Sistema
+# 7. Arquivos do Sistema Operacional e IDEs
 .DS_Store
 Thumbs.db
-
-# Chaves RSA
-private_key.pem
-public_key.pem
-
-#Logs
-*.log
+.vscode/
+.idea/
