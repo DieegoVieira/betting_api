@@ -10,10 +10,13 @@ from acess_log import registrar_tentativa
 from models import Base
 
 # 1. Configuração do Banco (Lutas)
-SQLALCHEMY_DATABASE_URL = "sqlite:///./database_v_final_v1.db" # MUDE O NOME DO ARQUIVO
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SQLALCHEMY_DATABASE_URL = os.getenv("POSTGRES_URL")
 
+if SQLALCHEMY_DATABASE_URL and SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 SENHA_ADMIN = os.getenv("SENHA_ADMIN", "admin_local")
 
 class Luta(Base):
@@ -111,8 +114,13 @@ def validar_api_externa(
 
 # 6. AS ROTAS
 @app.post("/admin/cadastrar-integrador")
-def cadastrar_integrador(nome_api: str, chave_publica: str, db: Session = Depends(get_db), admin_valido: None = Depends(verificar_admin)):
-    # Aqui o ideal seria ter uma senha forte só pra você acessar essa rota
+def cadastrar_integrador(
+    nome_api: str,
+    chave_publica: str,
+    db: Session = Depends(get_db),
+    admin_valido: None = Depends(verificar_admin)
+    ):
+
     novo_integrador = IntegradorAutorizado(
         nome_api=nome_api,
         chave_publica_pem=chave_publica
