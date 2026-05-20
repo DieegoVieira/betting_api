@@ -112,7 +112,7 @@ RABBITMQ_URL=
 # Executar Localmente
 
 ```bash
-uvicorn main:app --reload
+uvicorn API_lutas:app --reload
 ```
 
 Acesse:
@@ -177,13 +177,14 @@ Eventos publicados:
 
 ```text
 .
-├── main.py
+├── API_lutas.py
 ├── models.py
 ├── security.py
 ├── acess_log.py
 ├── rabbitmq_service.py
 ├── requirements.txt
 ├── vercel.json
+├── LICENSE
 └── README.md
 ```
 
