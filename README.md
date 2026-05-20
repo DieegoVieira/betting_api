@@ -1,265 +1,242 @@
-# 🥊 API de Apostas em Lutas - Sistemas Distribuídos (Microserviço)
+# API de Lutas - Sistema Distribuído de Apostas
 
-Este projeto consiste em uma API RESTful desenvolvida para simular um sistema de agendamento e gestão de lutas. Ele foi construído como parte da disciplina de Sistemas Distribuídos, demonstrando a interoperabilidade entre serviços independentes e implementando uma **Arquitetura de Segurança M2M (Machine-to-Machine) com Criptografia Assimétrica RSA**.
+Microserviço responsável pelo gerenciamento de lutas dentro de um ecossistema distribuído de apostas.
 
-> ⚠️ **Nota de Arquitetura:**  
-> Este repositório contém o **Microserviço de Backend (API de Lutas)**.  
-> A interface web e o Gateway de autenticação de usuários residem em um repositório separado (**Integrador**).
+A API implementa:
 
----
-
-# 🌐 URL de Acesso (Produção)
-
-A API está hospedada e pronta para receber requisições em:
-
-👉 `https://betting-api-lutas.vercel.app`
-
-> *(Nota: Requisições diretas via navegador retornarão Erro 401/403 devido à exigência de assinatura digital nos cabeçalhos).*
+- CRUD de lutas
+- Integração distribuída com API de lutadores
+- Segurança M2M via RSA
+- Publicação de eventos RabbitMQ
+- Arquitetura orientada a eventos
+- Persistência PostgreSQL
 
 ---
 
-# 🚀 Tecnologias Utilizadas
+# Tecnologias Utilizadas
 
-- **Python 3.11+** — Linguagem de programação principal.
-- **FastAPI** — Framework de alta performance para construção de APIs.
-- **Cryptography** — Validação de assinaturas digitais RSA (*Zero Trust Security*).
-- **SQLAlchemy** — ORM para abstração e persistência de dados.
-- **PostgreSQL (Neon.tech)** — Banco de dados relacional em nuvem para persistência real.
-- **Vercel** — Plataforma de hospedagem Serverless.
-
----
-
-# 📁 Estrutura do Projeto
-
-```bash
-betting_api/
-├── API_lutas.py         # Orquestrador da API e definição de rotas
-├── models.py            # Definição das tabelas (Lutas e Integradores)
-├── security.py          # Motor de validação criptográfica RSA
-├── acess_log.py         # Auditoria e logs de requisições (capturados pela Vercel)
-├── vercel.json          # Configuração de deploy Serverless
-├── requirements.txt     # Dependências do projeto
-└── API_Documentation.md # Documentação técnica dos endpoints
-````
+- Python
+- FastAPI
+- PostgreSQL
+- SQLAlchemy
+- RabbitMQ
+- Neon Database
+- Vercel
+- Railway
+- JWT
+- RSA-PSS
 
 ---
 
-# 🛡️ Segurança M2M (Machine-to-Machine)
+# Arquitetura
 
-Para garantir que apenas sistemas autorizados possam gerenciar o calendário de lutas, a API utiliza **Assinatura Digital RSA**.
-
----
-
-# 🔐 Fluxo de Validação
-
-## 1️⃣ Recepção da Requisição
-
-A API intercepta os cabeçalhos:
-
-```http
-X-API-Nome
-X-Assinatura
+```text
+Frontend
+   |
+Integrador / Gateway
+   |
+API de Lutas
+   |
+   +--> PostgreSQL (Neon)
+   |
+   +--> API de Lutadores
+   |
+   +--> RabbitMQ
 ```
 
 ---
 
-## 2️⃣ Identificação do Integrador
+# Instalação Local
 
-O sistema consulta o banco de dados em busca da **Chave Pública** vinculada ao integrador informado.
-
----
-
-## 3️⃣ Validação Criptográfica
-
-O motor de segurança utiliza a chave pública armazenada para validar matematicamente a assinatura enviada.
-
-A autenticação garante:
-
-* Integridade da mensagem
-* Autenticidade do integrador
-* Segurança sem compartilhamento de segredos
-
----
-
-## 4️⃣ Interoperabilidade com Microsserviços
-
-Após a validação RSA, a API realiza uma consulta ao microserviço externo de lutadores:
+## 1. Clonar repositório
 
 ```bash
-https://api-lutadoressd.onrender.com/api/lutadores/
+git clone URL_DO_REPOSITORIO
 ```
 
-Objetivo:
-
-* Confirmar existência dos atletas
-* Garantir consistência dos dados distribuídos
-
 ---
 
-## 5️⃣ Persistência
-
-A luta somente é registrada no banco de dados se:
-
-* A assinatura RSA for válida
-* O integrador estiver autorizado
-* Os lutadores existirem
-
----
-
-# ⚙️ Execução Local
-
-# 1️⃣ Instalação
+## 2. Entrar na pasta
 
 ```bash
-git clone https://github.com/joaofoguin/betting_api
-cd betting_api
+cd api_lutas
+```
 
+---
+
+## 3. Criar ambiente virtual
+
+```bash
+python -m venv venv
+```
+
+---
+
+## 4. Ativar ambiente virtual
+
+### Windows
+
+```bash
+venv\Scripts\activate
+```
+
+### Linux/Mac
+
+```bash
+source venv/bin/activate
+```
+
+---
+
+## 5. Instalar dependências
+
+```bash
 pip install -r requirements.txt
 ```
 
 ---
 
-# 2️⃣ Variáveis de Ambiente
+# Variáveis de Ambiente
 
-Crie um arquivo `.env` ou configure as variáveis diretamente no terminal.
-
-## DATABASE_URL
-
-String de conexão do banco de dados.
-
-Exemplos:
+Crie um arquivo `.env`:
 
 ```env
-DATABASE_URL=postgresql://usuario:senha@host/database
-```
-
-ou
-
-```env
-DATABASE_URL=sqlite:///./local.db
+DATABASE_URL=
+POSTGRES_URL_NON_POOLING=
+SENHA_ADMIN=
+RABBITMQ_URL=
 ```
 
 ---
 
-## SENHA_ADMIN
-
-Token utilizado para cadastro de novos integradores via Swagger/Admin API.
-
-Exemplo:
-
-```env
-SENHA_ADMIN=minha_senha_segura
-```
-
----
-
-# 3️⃣ Iniciar Servidor
+# Executar Localmente
 
 ```bash
-uvicorn API_lutas:app --reload
+uvicorn main:app --reload
 ```
 
-A API será iniciada localmente.
+Acesse:
 
----
-
-# ☁️ Deploy na Vercel
-
-O projeto está otimizado para ambiente **Serverless** da Vercel.
-
----
-
-## 💾 Persistência
-
-Utiliza:
-
-* **PostgreSQL**
-* **Neon.tech**
-* Conexão persistente em nuvem
-
----
-
-## 📜 Logs e Auditoria
-
-O sistema utiliza:
-
-```python
-print()
+```text
+http://127.0.0.1:8000
 ```
 
-Os logs são automaticamente capturados pelo painel da Vercel.
+Swagger:
 
-Isso permite:
-
-* Auditoria
-* Monitoramento
-* Rastreamento de acessos
-* Diagnóstico de falhas
+```text
+http://127.0.0.1:8000/docs
+```
 
 ---
 
-## ⚙️ Configuração
+# Deploy Online
 
-O arquivo:
+## PostgreSQL
+
+Banco hospedado no:
+
+- Neon
+
+---
+
+## RabbitMQ
+
+RabbitMQ hospedado no:
+
+- Railway
+
+---
+
+## API
+
+Deploy realizado na:
+
+- Vercel
+
+---
+
+# RabbitMQ
+
+A API publica eventos assíncronos na fila:
+
+```text
+eventos_lutas
+```
+
+Eventos publicados:
+
+| Evento | Descrição |
+|---|---|
+| luta_criada | Nova luta cadastrada |
+| luta_editada | Luta alterada |
+| luta_cancelada | Luta removida |
+
+---
+
+# Estrutura do Projeto
+
+```text
+.
+├── main.py
+├── models.py
+├── security.py
+├── acess_log.py
+├── rabbitmq_service.py
+├── requirements.txt
+├── vercel.json
+└── README.md
+```
+
+---
+
+# Arquivos Sensíveis
+
+NÃO subir no GitHub:
+
+- `.env`
+- `private_key.pem`
+- credenciais
+- tokens
+- URLs privadas
+
+---
+
+# .gitignore
+
+```gitignore
+.env
+private_key.pem
+__pycache__/
+*.pyc
+venv/
+```
+
+---
+
+# Como Subir no GitHub
 
 ```bash
-vercel.json
-```
-
-define:
-
-* Runtime Python
-* Mapeamento de rotas
-* Estratégia Serverless
-
----
-
-# 📚 Documentação Interativa
-
-A documentação Swagger está disponível em:
-
-👉 `https://betting-api-lutas.vercel.app/docs`
-
----
-
-## 💡 Cadastro de Integradores
-
-Para cadastrar um novo integrador, utilize:
-
-```bash
-/admin/cadastrar-integrador
-```
-
-Enviando no cabeçalho:
-
-```http
-X-Admin-Token
-```
-
-com o valor definido em:
-
-```env
-SENHA_ADMIN
+git add .
+git commit -m "feat: adiciona RabbitMQ e melhorias distribuídas"
+git push
 ```
 
 ---
 
-# 🧠 Conceitos de Sistemas Distribuídos Aplicados
+# Conceitos de Sistemas Distribuídos Aplicados
 
-Este projeto implementa diversos conceitos fundamentais da disciplina:
-
-* Comunicação síncrona entre microserviços
-* APIs RESTful
-* Interoperabilidade entre serviços
-* Segurança distribuída
-* Autenticação M2M
-* Criptografia assimétrica RSA
-* Persistência relacional em nuvem
-* Arquitetura Serverless
-* Auditoria distribuída
-* Rastreabilidade de acessos
-* Validação de integridade
-* Integração HTTP/REST
+- Microsserviços
+- API Gateway
+- Comunicação REST
+- Comunicação assíncrona
+- RabbitMQ / AMQP
+- Arquitetura orientada a eventos
+- Segurança distribuída
+- RSA
+- JWT
+- Persistência distribuída
+- Cloud Computing
+- Serverless
 
 ---
 
