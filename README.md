@@ -48,7 +48,8 @@ API de Lutas
 
 # Instalação Online
 
-Para implementação siga os arquivos Integração...md
+Para implementação siga os arquivos Integração...md.
+
 Para conexão forneça os dados requisitados para os administradores.
 
 ---
