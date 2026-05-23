@@ -6,6 +6,12 @@ A API de Lutas exige que o integrador seja previamente cadastrado pela equipe re
 
 ---
 
+# ⚠️ ATENÇÃO
+
+A API de Lutas mantém dependência explícita da API de Lutadores (https://api-lutadoressd.onrender.com) para garantir consistência referencial distribuída. Como os lutadores são uma entidade externa ao domínio de lutas, a API valida os IDs antes de persistir o confronto. Caso integradores utilizem outras fontes de lutadores, o mapeamento entre IDs deve ser feito no próprio integrador, mantendo a API de Lutas desacoplada de múltiplos formatos externos.
+
+---
+
 # 1. URL da API
 
 URL de produção:
