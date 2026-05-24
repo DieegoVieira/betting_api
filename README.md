@@ -15,10 +15,6 @@ A API implementa:
 
 # 🔗 Acesso Público
 
-**Repositório (Fork):** https://github.com/DieegoVieira/betting_api.git
-
-**URL de Produção:**
-
 ```
 https://betting-api-lutas.vercel.app
 ```
